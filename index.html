@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="lo">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nani Logistics - ລະບົບຕິດຕາມການເຮັດວຽກ ແລະ ລວມລິ້ງ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Lao:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Noto Sans Lao', sans-serif;
+            background-color: #f0f9ff;
+        }
+        .task-done {
+            text-decoration: line-through;
+            color: #9ca3af;
+        }
+        .tab-btn { color: #6b7280; border-color: transparent; }
+        .tab-btn.active { color: #1d4ed8; border-color: #2563eb; }
+        details > summary { list-style: none; cursor: pointer; }
+        details > summary::-webkit-details-marker { display: none; }
+        details[open] .jd-chevron { transform: rotate(180deg); }
+        /* ປຸ່ມແກ້ໄຂ ສະແດງສະເພາະຕອນເຂົ້າລະບົບແອດມິນ */
+        body:not(.admin) .admin-only { display: none !important; }
+        .edit-btn { font-size: 12px; padding: 2px 6px; border-radius: 6px; }
+        @media print {
+            .no-print, header, .admin-only { display: none !important; }
+            body { background: #fff; }
+            details { break-inside: avoid; }
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white shadow-lg sticky top-0 z-40">
+        <div class="container mx-auto px-4 py-3 flex flex-wrap gap-2 justify-between items-center">
+            <h1 class="text-2xl font-bold"><i class="fa-solid fa-truck-fast mr-2"></i> Nani Logistics</h1>
+            <div class="flex items-center gap-2 text-sm">
+                <span id="sync-status" class="bg-blue-700 px-3 py-1 rounded-full"></span>
+                <button id="login-btn" onclick="openLogin()" class="bg-white/15 hover:bg-white/25 px-3 py-1 rounded-full"><i class="fa-solid fa-lock mr-1"></i> ແອດມິນ</button>
+                <button id="logout-btn" onclick="logout()" class="hidden bg-amber-400 text-amber-950 hover:bg-amber-300 px-3 py-1 rounded-full font-semibold"><i class="fa-solid fa-pen-to-square mr-1"></i> ໂໝດແກ້ໄຂ · ອອກ</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav class="bg-white border-b border-blue-100 shadow-sm no-print">
+        <div class="container mx-auto px-4 flex gap-2">
+            <button id="tab-links" onclick="showView('links')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2">
+                <i class="fa-solid fa-link mr-1"></i> ລິ້ງວຽກ
+            </button>
+            <button id="tab-jd" onclick="showView('jd')" class="tab-btn px-4 py-3 text-sm font-semibold border-b-2">
+                <i class="fa-solid fa-id-badge mr-1"></i> JD ຕຳແໜ່ງງານ
+            </button>
+        </div>
+    </nav>
+
+    <div id="banner" class="hidden container mx-auto px-4 pt-4"></div>
+
+    <!-- JD View -->
+    <main id="view-jd" class="container mx-auto px-4 py-8 hidden">
+        <div class="mb-6 text-center">
+            <h2 class="text-3xl font-bold text-blue-800 mb-2">JD ຕຳແໜ່ງງານ</h2>
+            <p class="text-gray-600">JD ຕຳແໜ່ງຫຼັກ ພ້ອມລາຍຊື່ທີມງານ, ຜັງອົງກອນ ແລະ ຂັ້ນຕອນວຽກ ໃຊ້ສຳລັບຮັບສະໝັກ, ປະຖົມນິເທດ ແລະ ປະເມີນຜົນງານ</p>
+            <div class="mt-4 flex flex-wrap justify-center gap-2 no-print">
+                <button onclick="toggleAllJd(true)" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded"><i class="fa-solid fa-angles-down mr-1"></i> ເປີດທັງໝົດ</button>
+                <button onclick="toggleAllJd(false)" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded"><i class="fa-solid fa-angles-up mr-1"></i> ປິດທັງໝົດ</button>
+                <button onclick="toggleAllJd(true); window.print()" class="text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded"><i class="fa-solid fa-print mr-1"></i> ພິມ JD</button>
+            </div>
+        </div>
+
+        <!-- Overview -->
+        <div class="bg-white rounded-xl shadow-md border border-blue-100 overflow-hidden mb-6">
+            <div class="bg-blue-600 text-white px-4 py-3 font-bold flex justify-between items-center">
+                <span><i class="fa-solid fa-sitemap mr-2"></i> ພາບລວມຕຳແໜ່ງ</span>
+                <button onclick="editJd()" class="admin-only bg-white text-blue-700 hover:bg-blue-50 text-xs px-2 py-1 rounded"><i class="fa-solid fa-plus mr-1"></i> ເພີ່ມຕຳແໜ່ງ</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-blue-50 text-blue-900">
+                        <tr>
+                            <th class="text-left px-4 py-2">#</th>
+                            <th class="text-left px-4 py-2">ຕຳແໜ່ງ</th>
+                            <th class="text-left px-4 py-2">ລາຍງານຕໍ່</th>
+                            <th class="text-left px-4 py-2">ລັກສະນະວຽກ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="jd-overview"></tbody>
+                </table>
+            </div>
+            <div class="px-4 py-3 text-xs text-gray-600 bg-gray-50 border-t border-gray-100 space-y-1">
+                <p><b>ອຳນາດຕັດສິນໃຈ:</b> <span id="note-authority"></span></p>
+                <p><b>ໝາຍເຫດ:</b> <span id="note-remark"></span></p>
+                <button onclick="editNotes()" class="admin-only edit-btn bg-blue-100 text-blue-700 hover:bg-blue-200"><i class="fa-solid fa-pen mr-1"></i> ແກ້ໝາຍເຫດ</button>
+            </div>
+        </div>
+
+        <!-- Team roster -->
+        <div class="bg-white rounded-xl shadow-md border border-blue-100 overflow-hidden mb-6">
+            <div class="bg-blue-600 text-white px-4 py-3 font-bold flex flex-wrap gap-2 justify-between items-center">
+                <span><i class="fa-solid fa-users mr-2"></i> ລາຍຊື່ທີມງານ ແລະ ຜູ້ຮັບຜິດຊອບ</span>
+                <span class="admin-only flex gap-1">
+                    <button onclick="editOffice()" class="bg-white text-blue-700 hover:bg-blue-50 text-xs px-2 py-1 rounded"><i class="fa-solid fa-plus mr-1"></i> ພະນັກງານຫ້ອງການ/ສາງ</button>
+                    <button onclick="editTruck()" class="bg-white text-blue-700 hover:bg-blue-50 text-xs px-2 py-1 rounded"><i class="fa-solid fa-plus mr-1"></i> ລົດ + ທີມ</button>
+                </span>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-blue-50 text-blue-900">
+                        <tr>
+                            <th class="text-left px-4 py-2">ຕຳແໜ່ງ</th>
+                            <th class="text-left px-4 py-2">ຊື່-ນາມສະກຸນ</th>
+                            <th class="text-left px-4 py-2">ຂອບເຂດທີ່ຮັບຜິດຊອບ</th>
+                            <th class="text-left px-4 py-2">ລາຍງານຕໍ່</th>
+                            <th class="admin-only px-2 py-2"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="roster-body"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Org chart -->
+        <div class="bg-white rounded-xl shadow-md border border-blue-100 overflow-hidden mb-6">
+            <div class="bg-blue-600 text-white px-4 py-3 font-bold"><i class="fa-solid fa-sitemap mr-2"></i> ຜັງອົງກອນ <span id="org-count" class="font-normal text-blue-100 text-sm"></span></div>
+            <div class="p-4">
+                <p class="text-sm text-gray-600 mb-4">ທຸກຕຳແໜ່ງລາຍງານຕໍ່ຜູ້ຈັດການ ເຊິ່ງຕັດສິນໃຈຮ່ວມກັບຜູ້ອຳນວຍການ <span class="admin-only text-amber-700">(ແກ້ໄຂຜ່ານຕາຕະລາງລາຍຊື່ທີມງານ)</span></p>
+                <div id="org-chart" class="flex flex-col items-center"></div>
+            </div>
+        </div>
+
+        <!-- Workflow -->
+        <div class="bg-white rounded-xl shadow-md border border-blue-100 overflow-hidden mb-6">
+            <div class="bg-blue-600 text-white px-4 py-3 font-bold flex flex-wrap gap-2 justify-between items-center">
+                <span><i class="fa-solid fa-diagram-next mr-2"></i> ຂັ້ນຕອນວຽກ: ຈາກອໍເດີ ຮອດ ເງິນເຂົ້າ <span id="wf-count" class="font-normal text-blue-100 text-sm"></span></span>
+                <button onclick="editStep()" class="admin-only bg-white text-blue-700 hover:bg-blue-50 text-xs px-2 py-1 rounded"><i class="fa-solid fa-plus mr-1"></i> ເພີ່ມຂັ້ນຕອນ</button>
+            </div>
+            <div class="p-4">
+                <div id="workflow" class="max-w-xl mx-auto"></div>
+                <p class="text-xs text-gray-600 bg-gray-50 rounded-lg p-3 mt-4"><b>ກົດ:</b> <span id="note-workflow"></span></p>
+            </div>
+        </div>
+
+        <!-- JD cards -->
+        <div id="jd-container" class="space-y-4"></div>
+    </main>
+
+    <!-- Links View -->
+    <main id="view-links" class="container mx-auto px-4 py-8">
+        <div class="mb-6 text-center">
+            <h2 class="text-3xl font-bold text-blue-800 mb-2">ກະດານຕິດຕາມວຽກພະນັກງານ</h2>
+            <p class="text-gray-600">ລິ້ງ Google Sheets, Forms ຫຼື ເອກະສານຂອງແຕ່ລະພະແນກ ເພື່ອໃຫ້ພະນັກງານເຂົ້າເຖິງໄດ້ງ່າຍ</p>
+            <p class="text-xs text-gray-400 mt-1">ເຄື່ອງໝາຍ ✓ ບັນທຶກໄວ້ໃນເຄື່ອງຂອງແຕ່ລະຄົນ</p>
+            <button onclick="editDept()" class="admin-only mt-4 bg-blue-600 text-white hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold"><i class="fa-solid fa-plus mr-1"></i> ເພີ່ມພະແນກ</button>
+        </div>
+
+        <div id="departments-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+    </main>
+
+    <!-- Modal -->
+    <div id="modal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-start justify-center overflow-y-auto p-4">
+        <form id="modal-form" class="bg-white rounded-xl shadow-xl w-full max-w-2xl my-8">
+            <div class="px-5 py-3 border-b flex justify-between items-center">
+                <h3 id="modal-title" class="font-bold text-lg text-blue-800"></h3>
+                <button type="button" onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-xl">&times;</button>
+            </div>
+            <div id="modal-body" class="px-5 py-4 space-y-3"></div>
+            <div class="px-5 py-3 border-t flex justify-between items-center gap-2">
+                <button type="button" id="modal-delete" class="hidden text-red-600 hover:bg-red-50 px-3 py-2 rounded text-sm"><i class="fa-solid fa-trash-can mr-1"></i> ລຶບ</button>
+                <span class="flex-grow"></span>
+                <button type="button" onclick="closeModal()" class="px-4 py-2 rounded text-sm text-gray-600 hover:bg-gray-100">ຍົກເລີກ</button>
+                <button type="submit" class="px-4 py-2 rounded text-sm bg-blue-600 text-white hover:bg-blue-700 font-semibold">ບັນທຶກ</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        // ===== ຕັ້ງຄ່າ =====
+        // ວາງ URL ຂອງ Apps Script Web App (ລົງທ້າຍດ້ວຍ /exec) ທີ່ນີ້
+        const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbymsDoKtrXvsoAhQpF4gxtOrmMD1DQlwF7SyhVD-BaGDfGhYltk08HUcbuEk5S3ZmBb/exec';
+        const POLL_MS = 15000;
+
+        // ===== ຂໍ້ມູນເລີ່ມຕົ້ນ (ໃຊ້ຕອນ Google Sheets ຍັງບໍ່ມີຂໍ້ມູນ) =====
+        const defaultData = [
+            {
+                id: 'dept-admin',
+                name: 'ພະແນກແອດມິນ (Admin)',
+                icon: 'fa-headset',
+                color: 'bg-indigo-500',
+                tasks: [
+                    { id: 1, title: 'ຟອມຮັບອໍເດີລູກຄ້າ', url: 'https://forms.google.com/', done: false },
+                    { id: 2, title: 'ບັນທຶກເວລາເຂົ້າ-ອອກວຽກ', url: 'https://docs.google.com/spreadsheets/', done: false }
+                ]
+            },
+            {
+                id: 'dept-logistics',
+                name: 'ພະແນກຂົນສົ່ງ (Logistics)',
+                icon: 'fa-route',
+                color: 'bg-blue-500',
+                tasks: [
+                    { id: 3, title: 'ຕາຕະລາງຈັດລົດ ແລະ ເສັ້ນທາງປະຈຳວັນ', url: 'https://docs.google.com/spreadsheets/', done: false },
+                    { id: 4, title: 'ຟອມແຈ້ງສ້ອມແປງລົດ / ລົດເສຍ', url: 'https://forms.google.com/', done: false }
+                ]
+            },
+            {
+                id: 'dept-warehouse',
+                name: 'ພະແນກສາງສິນຄ້າ (Warehouse)',
+                icon: 'fa-boxes-stacked',
+                color: 'bg-sky-500',
+                tasks: [
+                    { id: 5, title: 'ລະບົບຕັດສະຕັອກປະຈຳວັນ (FIFO)', url: 'https://docs.google.com/spreadsheets/', done: false },
+                    { id: 6, title: 'ໃບເບີກສິນຄ້າຂຶ້ນລົດ', url: 'https://docs.google.com/', done: false }
+                ]
+            },
+            {
+                id: 'dept-finance',
+                name: 'ພະແນກການເງິນ-ບັນຊີ (Finance)',
+                icon: 'fa-file-invoice-dollar',
+                color: 'bg-cyan-600',
+                tasks: [
+                    { id: 7, title: 'ສະຫຼຸບຍອດເງິນຮັບຈາກຄົນຂັບລາຍວັນ', url: 'https://docs.google.com/spreadsheets/', done: false },
+                    { id: 8, title: 'ຟອມເບີກຄ່າໃຊ້ຈ່າຍ / ຄ່ານ້ຳມັນ', url: 'https://forms.google.com/', done: false }
+                ]
+            }
+        ];
+
+        const MGR = 'ຜູ້ຈັດການໂລຈິສຕິກ ແລະ ແຟຣນໄຊ';
+        const jdData = [
+            {
+                title: 'ຜູ້ອຳນວຍການ / ເຈົ້າຂອງກິດຈະການ', en: 'Director & Owner', icon: 'fa-user-tie', reportsTo: '— (ເປັນເຈົ້າຂອງກິດຈະການ)',
+                summary: 'ກຳນົດທິດທາງ, ຄຸມຜົນປະກອບການທັງບໍລິສັດ',
+                purpose: 'ນຳພາບໍລິສັດໃຫ້ບັນລຸເປົ້າໝາຍຍອດຂາຍ ແລະ ກຳໄລ ໃນຖານະເຈົ້າຂອງກິດຈະການ ແລະ ຜູ້ກຳນົດທິດທາງ',
+                duties: [{ items: [
+                    'ວາງແຜນທຸລະກິດ ແລະ ງົບປະມານປະຈຳປີ ຮ່ວມກັບຜູ້ຈັດການ ແລະ ອະນຸມັດຂັ້ນສຸດທ້າຍ',
+                    'ກຳນົດ KPI ໃຫ້ແຕ່ລະພະແນກ ແລະ ຕິດຕາມຜົນທຸກເດືອນ',
+                    'ກວດລາຍງານການເງິນ, ກະແສເງິນສົດ ແລະ ອະນຸມັດລາຍຈ່າຍຕາມວົງເງິນທີ່ໄດ້ຮັບອະນຸຍາດ',
+                    'ເຈລະຈາສັນຍາກັບລູກຄ້າລາຍໃຫຍ່, ຄູ່ຄ້າ ແລະ ຜູ້ສະໜອງ',
+                    'ອະນຸມັດການຮັບພະນັກງານ, ປັບເງິນເດືອນ ແລະ ປະເມີນຜົນຫົວໜ້າພະແນກ',
+                    'ທົບທວນຜົນປະກອບການ ແລະ ຄວາມສ່ຽງສຳຄັນທຸກເດືອນ ຮ່ວມກັບຜູ້ຈັດການ'
+                ]}],
+                kpi: [{ items: ['ຍອດຂາຍຕາມເປົ້າ ≥ __%', 'ກຳໄລສຸດທິ ≥ __%', 'ລາຍຈ່າຍບໍ່ເກີນງົບ', 'ອັດຕາພະນັກງານລາອອກ ≤ __%'] }],
+                qualifications: ['ປະລິນຍາຕີຂຶ້ນໄປ ດ້ານບໍລິຫານທຸລະກິດ ຫຼື ເທົ່າທຽບ', 'ປະສົບການບໍລິຫານ 5 ປີຂຶ້ນໄປ (ມີວຽກຂົນສົ່ງ ຈະພິຈາລະນາເປັນພິເສດ)', 'ອ່ານລາຍງານການເງິນໄດ້', 'ມີພາວະຜູ້ນຳ ແລະ ຕັດສິນໃຈໄດ້ໄວ'],
+                salary: '____', hours: '____'
+            },
+            {
+                title: 'ຜູ້ຈັດການໂລຈິສຕິກ ແລະ ແຟຣນໄຊ', en: 'Logistics & Franchise Manager', icon: 'fa-user-gear', reportsTo: 'ຜູ້ອຳນວຍການ',
+                summary: 'ຄົນດຽວດູແລ 2 ດ້ານ: ຂົນສົ່ງ (ແຜນ, ຈັດລົດ-ຈັດຄົນປະຈຳວັນ, ຕົ້ນທຶນ, KPI) ແລະ ແຟຣນໄຊ (ນະໂຍບາຍ, ຂະຍາຍສາຂາ, ກວດມາດຕະຖານ)',
+                purpose: 'ຄົນດຽວຮັບຜິດຊອບ 2 ດ້ານ — ໃຫ້ວຽກຂົນສົ່ງສົ່ງຄົບ, ທັນເວລາ, ປອດໄພ ພາຍໃຕ້ງົບປະມານ ແລະ ໃຫ້ລະບົບແຟຣນໄຊເຕີບໂຕຢ່າງມີກຳໄລ ແລະ ໄດ້ມາດຕະຖານດຽວກັນທຸກສາຂາ',
+                duties: [
+                    { heading: 'ດ້ານຂົນສົ່ງ', items: [
+                        'ວາງແຜນເຂດ ແລະ ເສັ້ນທາງຈັດສົ່ງລາຍອາທິດ/ລາຍເດືອນ',
+                        'ຈັດສັນລົດ, ຄົນຂັບ ແລະ ກຳລັງຄົນໃຫ້ພໍກັບປະລິມານວຽກ',
+                        'ຄຸມຕົ້ນທຶນຂົນສົ່ງ: ນ້ຳມັນ, ຄ່າສ້ອມ, OT, ຄ່າເສຍຫາຍ',
+                        'ກຳນົດ ແລະ ຕິດຕາມ SOP ການຈັດສົ່ງ, ຄວາມປອດໄພ ແລະ ຂໍ້ຫ້າມວຽກຂົນສົ່ງ',
+                        'ແກ້ບັນຫາໜ້າງານ (ລົດເສຍ, ອຸບັດຕິເຫດ, ລູກຄ້າຮ້ອງຮຽນ)',
+                        'ສັນຫາ, ຝຶກອົບຮົມ ແລະ ປະເມີນຜົນທີມຂົນສົ່ງ'
+                    ]},
+                    { heading: 'ຈັດສົ່ງປະຈຳວັນ (ເຮັດເອງແທນ Dispatcher)', items: [
+                        'ຮວບຮວມອໍເດີ ແລະ ຈັດໃບວຽກແຍກຕາມສາຍ/ເຂດ ກ່ອນລົດອອກ',
+                        'ຈັບຄູ່ຄົນຂັບ-ຜູ້ຊ່ວຍກັບລົດ, ຈັດກະ ແລະ ຫາຄົນແທນເມື່ອມີຄົນລາ/ຂາດ',
+                        'ກວດລາຍການກວດລົດ ແລະ ສິນຄ້າຂຶ້ນລົດກ່ອນອອກທຸກຖ້ຽວ',
+                        'ຕິດຕາມສະຖານະລົດລະຫວ່າງມື້ ແລະ ປັບແຜນເມື່ອມີວຽກດ່ວນ ຫຼື ບັນຫາ',
+                        'ປິດຍອດຖ້ຽວປະຈຳວັນ (ສົ່ງແລ້ວ/ຄ້າງສົ່ງ/ຄືນ)'
+                    ]},
+                    { heading: 'ດ້ານແຟຣນໄຊ', items: [
+                        'ກຳນົດນະໂຍບາຍ, ຄ່າທຳນຽມ ແລະ ເງື່ອນໄຂສັນຍາແຟຣນໄຊ ໂດຍຕັດສິນໃຈຮ່ວມກັບຜູ້ອຳນວຍການ',
+                        'ຄິດໄລ່ ROI ແລະ ຈຸດຄຸ້ມທຶນ (break-even) ຂອງແຕ່ລະສາຂາ',
+                        'ວາງແຜນຂະຍາຍສາຂາ: ເລືອກທຳເລ, ຄັດເລືອກຜູ້ຮັບສິດ ແລະ ກຳນົດໄລຍະເປີດສາຂາ',
+                        'ກຳນົດເປົ້າຂາຍແຕ່ລະສາຂາ ແລະ ຕິດຕາມເປົ້າ vs ຕົວຈິງທຸກເດືອນ',
+                        'ກວດມາດຕະຖານສາຂາຕາມລາຍການກວດ (Compliance) ແລະ ຕິດຕາມການແກ້ໄຂ',
+                        'ຝຶກອົບຮົມຜູ້ຮັບສິດ ແລະ ປະສານການສົ່ງສິນຄ້າໃຫ້ສາຂາແຟຣນໄຊ',
+                        'ສະຫຼຸບ KPI ທັງ 2 ດ້ານ ລາຍງານຜູ້ອຳນວຍການທຸກເດືອນ'
+                    ]}
+                ],
+                kpi: [
+                    { heading: 'KPI ຂົນສົ່ງ', items: ['ສົ່ງທັນເວລາ ≥ __%', 'ລົດອອກທັນເວລາ ≥ __%', 'ວຽກຄ້າງສົ່ງຕໍ່ມື້ ≤ __ ລາຍການ', 'ຕົ້ນທຶນຂົນສົ່ງຕໍ່ໜ່ວຍ ≤ __', 'ອຸບັດຕິເຫດ 0 ຄັ້ງ', 'ອັດຕາພະນັກງານລາອອກ ≤ __%'] },
+                    { heading: 'KPI ແຟຣນໄຊ', items: ['ສາຂາໃໝ່ເປີດໄດ້ __ ສາຂາ/ປີ', 'ສາຂາບັນລຸເປົ້າຂາຍ ≥ __%', 'ຄະແນນກວດມາດຕະຖານສະເລ່ຍ ≥ __%', 'ສາຂາເລີກສັນຍາ ≤ __ ສາຂາ/ປີ'] }
+                ],
+                qualifications: ['ປະລິນຍາຕີຂຶ້ນໄປ', 'ປະສົບການບໍລິຫານວຽກຂົນສົ່ງ 3 ປີຂຶ້ນໄປ (ມີປະສົບການແຟຣນໄຊ/ຂະຍາຍສາຂາ ຈະພິຈາລະນາເປັນພິເສດ)', 'ຄິດໄລ່ ROI/ຈຸດຄຸ້ມທຶນໄດ້', 'ໃຊ້ Excel/Google Sheets ໄດ້ດີ', 'ມີພາວະຜູ້ນຳ, ເຈລະຈາເກັ່ງ, ເດີນທາງໄປສາຂາໄດ້'],
+                salary: '____', hours: '____'
+            },
+            {
+                title: 'ພະນັກງານການເງິນ-ບັນຊີ', en: 'Finance & Accounting', icon: 'fa-file-invoice-dollar', reportsTo: MGR,
+                summary: 'ຮັບ-ຈ່າຍເງິນ, ບັນຊີ, ລາຍງານການເງິນ',
+                purpose: 'ຄຸມເງິນເຂົ້າ-ອອກຂອງບໍລິສັດໃຫ້ຖືກຕ້ອງ, ກວດສອບໄດ້ ແລະ ລາຍງານທັນເວລາ',
+                duties: [{ items: [
+                    'ຮັບເງິນສົດຈາກທຸລະການຂົນສົ່ງ ແລະ ກວດເງິນໂອນຜ່ານທະນາຄານທຸກມື້',
+                    'ບັນທຶກຮັບ-ຈ່າຍ ແລະ ເກັບໃບບິນ/ໃບຮັບເງິນໃຫ້ຄົບ',
+                    'ຈ່າຍເງິນໃຫ້ຜູ້ສະໜອງ ແລະ ຄ່າໃຊ້ຈ່າຍຕ່າງໆ ຫຼັງໄດ້ຮັບອະນຸມັດເທົ່ານັ້ນ',
+                    'ຄິດໄລ່ເງິນເດືອນ, OT ແລະ ຄ່າຖ້ຽວ ລາຍງານໃຫ້ຜູ້ຈັດການ ແລະ ຜູ້ອຳນວຍການກວດກ່ອນຈ່າຍ',
+                    'ຕິດຕາມໜີ້ລູກຄ້າຄ້າງຊຳລະ ແລະ ໜີ້ທີ່ຕ້ອງຈ່າຍ',
+                    'ເຮັດລາຍງານກະແສເງິນສົດລາຍອາທິດ ແລະ ລາຍຮັບ-ລາຍຈ່າຍ/ກຳໄລລາຍເດືອນ',
+                    'ກະກຽມເອກະສານອາກອນ ແລະ ປະສານງານກັບຜູ້ກວດສອບບັນຊີ'
+                ]}],
+                kpi: [{ items: ['ເງິນສົດກົງກັບລາຍງານ 100% ທຸກມື້', 'ໜີ້ຄ້າງຊຳລະເກີນ 30 ມື້ ≤ __%', 'ສົ່ງລາຍງານປິດເດືອນພາຍໃນມື້ທີ __', 'ຈ່າຍເງິນເດືອນຖືກຕ້ອງ 100%'] }],
+                qualifications: ['ຊັ້ນສູງຂຶ້ນໄປ ດ້ານບັນຊີ/ການເງິນ', 'ປະສົບການ 2 ປີຂຶ້ນໄປ', 'ໃຊ້ Excel ໄດ້ດີ', 'ສັດຊື່, ລະອຽດກັບຕົວເລກ ແລະ ຮັກສາຄວາມລັບຂອງບໍລິສັດ'],
+                salary: '____', hours: '____'
+            },
+            {
+                title: 'ພະນັກງານແອດມິນ', en: 'Admin', icon: 'fa-headset', reportsTo: MGR,
+                summary: 'ວຽກຫ້ອງການ, ບຸກຄະລາກອນ, ຮັບອໍເດີ ແລະ ປະສານງານລູກຄ້າ',
+                purpose: 'ດູແລວຽກຫ້ອງການ, ເອກະສານບຸກຄະລາກອນ ແລະ ຊ່ອງທາງຕິດຕໍ່ລູກຄ້າ ໃຫ້ລຽບຮ້ອຍ ແລະ ຕອບໄວ',
+                duties: [{ items: [
+                    'ຮັບອໍເດີຈາກໂທລະສັບ/ແຊດລູກຄ້າ ແລະ ສົ່ງຕໍ່ໃຫ້ທຸລະການຂົນສົ່ງ',
+                    'ຕອບຄຳຖາມລູກຄ້າ ແລະ ບັນທຶກເລື່ອງຮ້ອງຮຽນສົ່ງຕໍ່ຜູ້ຮັບຜິດຊອບ',
+                    'ຈັດເກັບເອກະສານພະນັກງານ: ສັນຍາຈ້າງ, ປະຫວັດ, ໃບລາ',
+                    'ລົງເວລາເຂົ້າ-ອອກວຽກ ແລະ ສະຫຼຸບວັນລາ/OT ສົ່ງໃຫ້ການເງິນຄິດເງິນເດືອນ',
+                    'ຈັດຊື້ເຄື່ອງໃຊ້ຫ້ອງການ ແລະ ປະສານງານການຮັບສະໝັກພະນັກງານ',
+                    'ຈັດຕາຕະລາງນັດໝາຍ ແລະ ບັນທຶກການປະຊຸມໃຫ້ຜູ້ຈັດການ ແລະ ຜູ້ອຳນວຍການ'
+                ]}],
+                kpi: [{ items: ['ຕອບລູກຄ້າພາຍໃນ __ ນາທີ', 'ອໍເດີຜິດພາດ ≤ __%', 'ເອກະສານພະນັກງານຄົບ 100%', 'ສົ່ງສະຫຼຸບເວລາເຮັດວຽກທັນເວລາ 100%'] }],
+                qualifications: ['ຊັ້ນກາງ/ຊັ້ນສູງຂຶ້ນໄປ', 'ໃຊ້ຄອມພິວເຕີ, Excel ແລະ ແຊດໄດ້ຄ່ອງ', 'ສື່ສານດີ, ສຸພາບ, ໃຈເຢັນ', 'ລະອຽດ ແລະ ຈັດລຽງວຽກໄດ້ດີ'],
+                salary: '____', hours: '____'
+            },
+            {
+                title: 'ພະນັກງານຂັບລົດ', en: 'Driver', icon: 'fa-truck', reportsTo: MGR,
+                summary: 'ຂັບລົດສົ່ງສິນຄ້າໃຫ້ທັນເວລາ ແລະ ປອດໄພ',
+                purpose: 'ຂັບລົດສົ່ງສິນຄ້າຕາມໃບວຽກໃຫ້ຄົບ, ທັນເວລາ, ປອດໄພ ແລະ ດູແລລົດທີ່ຮັບຜິດຊອບ',
+                duties: [{ items: [
+                    'ກວດລົດກ່ອນອອກວຽກ (ນ້ຳມັນ, ລົມຍາງ, ເບຣກ, ໄຟ) ແລະ ລົງລາຍການກວດ',
+                    'ກວດນັບສິນຄ້າຂຶ້ນລົດໃຫ້ກົງກັບໃບວຽກ',
+                    'ຂັບຕາມເສັ້ນທາງທີ່ກຳນົດ, ເຄົາລົບກົດໝາຍຈະລາຈອນ, ບໍ່ໃຊ້ມືຖືຂະນະຂັບ',
+                    'ສົ່ງມອບສິນຄ້າ, ໃຫ້ລູກຄ້າເຊັນຮັບ ແລະ ເກັບເງິນ/ບັນຈຸພັນຄືນຕາມທີ່ກຳນົດ',
+                    'ແຈ້ງຜູ້ຈັດການທັນທີເມື່ອມີບັນຫາ (ລົດເສຍ, ອຸບັດຕິເຫດ, ລູກຄ້າບໍ່ຢູ່)',
+                    'ປິດຖ້ຽວ: ສົ່ງເງິນ, ເອກະສານ ແລະ ຍອດຄົງເຫຼືອໃຫ້ທຸລະການ, ລ້າງລົດໃຫ້ສະອາດ'
+                ]}],
+                kpi: [{ items: ['ສົ່ງຄົບຕາມໃບວຽກ ≥ __%', 'ອຸບັດຕິເຫດ/ໃບສັ່ງປັບ 0 ຄັ້ງ', 'ເງິນສົ່ງຄືນຂາດ 0', 'ເລື່ອງຮ້ອງຮຽນລູກຄ້າ ≤ __ ຄັ້ງ/ເດືອນ'] }],
+                qualifications: ['ມີໃບຂັບຂີ່ປະເພດທີ່ກົງກັບລົດ (____)', 'ປະສົບການຂັບລົດຂົນສົ່ງ 1 ປີຂຶ້ນໄປ', 'ຮູ້ເສັ້ນທາງໃນພື້ນທີ່', 'ບໍ່ດື່ມເຫຼົ້າຂະນະເຮັດວຽກ', 'ສັດຊື່, ສຸພາບກັບລູກຄ້າ'],
+                salary: '____ (ເຊັ່ນ ຄ່າຖ້ຽວ/ຄ່າຄອມມິດຊັນ)', hours: '____'
+            },
+            {
+                title: 'ຜູ້ຊ່ວຍຕິດລົດ', en: 'Delivery Helper', icon: 'fa-people-carry-box', reportsTo: MGR,
+                summary: 'ຂຶ້ນ-ລົງສິນຄ້າ, ສົ່ງມອບ, ເກັບບັນຈຸພັນຄືນ',
+                purpose: 'ຊ່ວຍຄົນຂັບຂົນຖ່າຍ ແລະ ສົ່ງມອບສິນຄ້າໃຫ້ລູກຄ້າຄົບ, ບໍ່ເສຍຫາຍ ແລະ ບໍລິການດີ',
+                duties: [{ items: [
+                    'ຂົນສິນຄ້າຂຶ້ນ-ລົງລົດ ແລະ ຈັດລຽງໃຫ້ປອດໄພ, ບໍ່ລົ້ມ/ແຕກ',
+                    'ນຳສິນຄ້າໄປວາງບ່ອນທີ່ລູກຄ້າກຳນົດ ຕາມມາດຕະຖານການບໍລິການ',
+                    'ນັບ ແລະ ເກັບບັນຈຸພັນຄືນ (ເຊັ່ນ ຕຸກ/ລັງ) ໃຫ້ກົງກັບໃບວຽກ',
+                    'ຊ່ວຍເບິ່ງທາງ/ຖອຍລົດ ແລະ ດູແລຄວາມປອດໄພອ້ອມລົດ',
+                    'ລ້າງກະບະລົດ ແລະ ອຸປະກອນຫຼັງເລີກວຽກ'
+                ]}],
+                kpi: [{ items: ['ສິນຄ້າເສຍຫາຍຈາກການຂົນ ≤ __ ອັນ/ເດືອນ', 'ບັນຈຸພັນຄືນຂາດ 0', 'ມາເຮັດວຽກຕົງເວລາ ≥ __%'] }],
+                qualifications: ['ບໍ່ຈຳກັດວຸດທິການສຶກສາ', 'ສຸຂະພາບແຂງແຮງ, ຍົກຂອງໜັກໄດ້', 'ດຸໝັ່ນ, ຕົງເວລາ, ສຸພາບ', 'ມີໃບຂັບຂີ່ ຈະພິຈາລະນາເປັນພິເສດ'],
+                salary: '____', hours: '____'
+            },
+            {
+                title: 'ພະນັກງານສາງສິນຄ້າ/ສະຕັອກ', en: 'Warehouse Staff', icon: 'fa-boxes-stacked', reportsTo: MGR,
+                summary: 'ຮັບ-ຈ່າຍ-ນັບສະຕັອກ',
+                purpose: 'ຄຸມການຮັບ-ຈ່າຍສິນຄ້າໃຫ້ຍອດສະຕັອກຖືກຕ້ອງ, ມີສິນຄ້າພໍສົ່ງ ແລະ ສາງເປັນລະບຽບ',
+                duties: [{ items: [
+                    'ຮັບສິນຄ້າເຂົ້າສາງ, ກວດຈຳນວນ ແລະ ສະພາບກ່ອນເຊັນຮັບ',
+                    'ຈ່າຍສິນຄ້າຂຶ້ນລົດຕາມໃບເບີກ ແລະ ຮັບຂອງ/ບັນຈຸພັນຄືນຈາກລົດ',
+                    'ບັນທຶກຮັບ-ຈ່າຍທຸກລາຍການພາຍໃນມື້ດຽວກັນ',
+                    'ນັບສະຕັອກປະຈຳວັນ/ອາທິດ, ແຈ້ງສິນຄ້າຂາດ, ເກີນ ຫຼື ເສຍຫາຍ',
+                    'ຈັດວາງສິນຄ້າແບບເຂົ້າກ່ອນ-ອອກກ່ອນ (FIFO) ແລະ ຮັກສາຄວາມສະອາດສາງ',
+                    'ແຈ້ງຈຸດສັ່ງຊື້ເມື່ອສະຕັອກຕ່ຳກວ່າທີ່ກຳນົດ'
+                ]}],
+                kpi: [{ items: ['ຄວາມແມ່ນຍຳສະຕັອກ ≥ __%', 'ສິນຄ້າຂາດສົ່ງ 0 ຄັ້ງ', 'ສິນຄ້າເສຍຫາຍໃນສາງ ≤ __%'] }],
+                qualifications: ['ມັດທະຍົມຕອນປາຍຂຶ້ນໄປ', 'ລະອຽດ, ສັດຊື່', 'ໃຊ້ Excel/Google Sheets ພື້ນຖານໄດ້', 'ຂັບລົດຍົກ (forklift) ໄດ້ ຈະພິຈາລະນາເປັນພິເສດ'],
+                salary: '____', hours: '____'
+            },
+            {
+                title: 'ພະນັກງານທຸລະການຂົນສົ່ງ', en: 'Logistics Admin', icon: 'fa-clipboard-list', reportsTo: MGR,
+                summary: 'ເອກະສານ, ໃບສົ່ງເຄື່ອງ, ສະຫຼຸບຍອດສົ່ງ',
+                purpose: 'ດູແລເອກະສານ ແລະ ຍອດສົ່ງຈາກວຽກຂົນສົ່ງໃຫ້ຄົບ, ຖືກຕ້ອງ ແລະ ກວດສອບໄດ້',
+                duties: [{ items: [
+                    'ຮັບອໍເດີຈາກແອດມິນ, ອອກໃບສົ່ງເຄື່ອງ/ໃບບິນ ແລະ ສົ່ງຕໍ່ຜູ້ຈັດການ',
+                    'ຮັບເງິນ ແລະ ເອກະສານຄືນຈາກຄົນຂັບ, ກວດຍອດກັບໃບວຽກທຸກຖ້ຽວ ແລ້ວສົ່ງຕໍ່ໃຫ້ການເງິນພາຍໃນມື້',
+                    'ບັນທຶກຍອດສົ່ງ ແລະ ຍອດຂາຍປະຈຳວັນລົງລະບົບ/ຊີດ',
+                    'ຕິດຕາມບັນຈຸພັນຄ້າງຄືນຈາກລູກຄ້າ',
+                    'ເກັບເອກະສານລົດ (ທະບຽນ, ປະກັນໄພ, ໃບຂັບຂີ່) ແລະ ເຕືອນກ່ອນໝົດອາຍຸ',
+                    'ເຮັດລາຍງານສະຫຼຸບປະຈຳວັນ/ເດືອນສົ່ງຜູ້ຈັດການ'
+                ]}],
+                kpi: [{ items: ['ຍອດເງິນກົງກັບໃບວຽກ 100% ທຸກມື້', 'ຄວາມຜິດພາດໃບສົ່ງເຄື່ອງ ≤ __%', 'ສົ່ງລາຍງານທັນເວລາ 100%', 'ເອກະສານລົດໝົດອາຍຸ 0 ຄັນ'] }],
+                qualifications: ['ຊັ້ນກາງ/ຊັ້ນສູງຂຶ້ນໄປ ດ້ານບັນຊີ/ທຸລະການ', 'ໃຊ້ Excel/Google Sheets ໄດ້ດີ', 'ສັດຊື່, ລະອຽດກັບຕົວເລກ'],
+                salary: '____', hours: '____'
+            },
+            {
+                title: 'ຊ່າງສ້ອມແປງລົດ', en: 'Fleet Mechanic', icon: 'fa-screwdriver-wrench', reportsTo: MGR,
+                summary: 'ດູແລລົດໃຫ້ພ້ອມໃຊ້ຕາມຮອບ PM',
+                purpose: 'ດູແລລົດທຸກຄັນໃຫ້ພ້ອມແລ່ນວຽກ, ຫຼຸດລົດຈອດເສຍ ແລະ ຄຸມຄ່າສ້ອມ',
+                duties: [{ items: [
+                    'ບຳລຸງຮັກສາຕາມຮອບ (PM): ນ້ຳມັນເຄື່ອງ, ຍາງ, ເບຣກ, ແບັດເຕີຣີ, ກອງຕ່າງໆ',
+                    'ກວດ ແລະ ສ້ອມເມື່ອລົດມີອາການຜິດປົກກະຕິ, ແຈ້ງເວລາຄືນລົດໃຫ້ຜູ້ຈັດການ',
+                    'ບັນທຶກປະຫວັດສ້ອມ, ເລກໄມ ແລະ ຄ່າໃຊ້ຈ່າຍລາຍຄັນ',
+                    'ສະເໜີສັ່ງຊື້ອະໄຫຼ່ ແລະ ຂໍອະນຸມັດກ່ອນສົ່ງສ້ອມຂ້າງນອກທຸກຄັ້ງ',
+                    'ສອນຄົນຂັບເລື່ອງການກວດລົດກ່ອນອອກວຽກ'
+                ]}],
+                kpi: [{ items: ['ລົດພ້ອມໃຊ້ງານ ≥ __%', 'PM ຕົງຮອບ 100%', 'ລົດເສຍກາງທາງ ≤ __ ຄັ້ງ/ເດືອນ', 'ຄ່າສ້ອມບໍ່ເກີນງົບ __'] }],
+                qualifications: ['ຊັ້ນກາງ/ຊັ້ນສູງ ຊ່າງກົນຈັກ ຫຼື ເທົ່າທຽບ', 'ປະສົບການສ້ອມລົດບັນທຸກ/ດີເຊວ 2 ປີຂຶ້ນໄປ', 'ມີໃບຂັບຂີ່ ຈະພິຈາລະນາເປັນພິເສດ'],
+                salary: '____', hours: '____'
+            }
+        ];
+
+        // แผนกไหนเกี่ยวกับ JD ตำแหน่งไหน (เลขลำดับใน jdData เริ่มที่ 1)
+        const deptJdMap = {
+            'dept-admin': [4],
+            'dept-logistics': [2, 5, 6, 8, 9],
+            'dept-warehouse': [7],
+            'dept-finance': [3]
+        };
+
+        const officeTeam = [
+            { jd: 1, position: 'ຜູ້ອຳນວຍການ', name: 'ທ່ານ ເພັດພູໄທ ວົງພູໄທ', scope: 'ທັງບໍລິສັດ', reportsTo: '— (ເປັນເຈົ້າຂອງກິດຈະການ)' },
+            { jd: 2, position: 'ຜູ້ຈັດການໂລຈິສຕິກ ແລະ ແຟຣນໄຊ', name: 'ນາງ ນານີ່ ໄຊຍະເສນ', scope: 'ຂົນສົ່ງທັງໝົດ + ທຸກສາຂາແຟຣນໄຊ', reportsTo: 'ຜູ້ອຳນວຍການ' },
+            { jd: 3, position: 'ພະນັກງານການເງິນ-ບັນຊີ', name: 'ນ. ປາລະວີ ພູວະນິດ', scope: '____', reportsTo: 'ຜູ້ຈັດການ' },
+            { jd: 4, position: 'ພະນັກງານແອດມິນ', name: '____', scope: '____', reportsTo: 'ຜູ້ຈັດການ' },
+            { jd: 7, position: 'ພະນັກງານສາງສິນຄ້າ/ສະຕັອກ', name: 'ທ ຕິກ / ທ ຕີ', scope: 'ສາງ ພະຂາວ', reportsTo: 'ຜູ້ຈັດການ' },
+            { jd: 8, position: 'ພະນັກງານທຸລະການຂົນສົ່ງ', name: '____', scope: '____', reportsTo: 'ຜູ້ຈັດການ' },
+            { jd: 9, position: 'ຊ່າງສ້ອມແປງລົດ', name: '____', scope: 'ລົດທຸກຄັນ', reportsTo: 'ຜູ້ຈັດການ' }
+        ];
+
+        // ທີມລົດ 5 ຄັນ (ຕາມຜັງອົງກອນ)
+        const trucks = [
+            { plate: '6096', driver: 'ທ. ລຸນພອນ ພຸດທະວົງ', helpers: [] },
+            { plate: '5968', driver: 'ທ. ບຸນມາ ມະນິທອງ', helpers: ['ທ ອອຍ'] },
+            { plate: '5311', driver: 'ທ. ຊີບ ຫຼວງອາພອນ', helpers: ['ທ ຫວານ'] },
+            { plate: '6097', driver: 'ທ ພອນເທວາ', helpers: ['ທ. ຄຳເພັດ ວໍລະຈັນ', 'ທ ນາວ'] },
+            { plate: '9041', driver: 'ທ. ທ່ຽງ ແກ້ວອິນທອນ', helpers: ['ທ ໜຶ່ງ', 'ທ ເພັດ', 'ທ ວິສະນຸ'] }
+        ];
+
+        // ຂັ້ນຕອນວຽກ ຈາກອໍເດີ ຮອດ ເງິນເຂົ້າ
+        const workflowSteps = [
+            { who: 'ແອດມິນ', what: 'ຮັບອໍເດີຈາກລູກຄ້າ (ໂທລະສັບ/ແຊດ)', jd: 4 },
+            { who: 'ທຸລະການຂົນສົ່ງ', what: 'ອອກໃບສົ່ງເຄື່ອງ/ໃບບິນ ສົ່ງຕໍ່ຜູ້ຈັດການ', jd: 8 },
+            { who: 'ຜູ້ຈັດການ', what: 'ຈັດໃບວຽກຕາມເຂດ, ຈັບຄູ່ຄົນຂັບ-ຜູ້ຊ່ວຍກັບລົດ', jd: 2 },
+            { who: 'ສາງສິນຄ້າ', what: 'ຈ່າຍສິນຄ້າຂຶ້ນລົດຕາມໃບເບີກ; ຄົນຂັບກວດລົດ, ຜູ້ຈັດການກວດກ່ອນອອກ', jd: 7 },
+            { who: 'ຄົນຂັບ + ຜູ້ຊ່ວຍຕິດລົດ', what: 'ສົ່ງສິນຄ້າ, ລູກຄ້າເຊັນຮັບ, ເກັບເງິນ ແລະ ຕຸກຄືນ', jd: 5, decision: true },
+            { who: 'ສາງສິນຄ້າ', what: 'ຮັບຕຸກ/ບັນຈຸພັນຄືນຈາກລົດ, ບັນທຶກສະຕັອກ', jd: 7 },
+            { who: 'ທຸລະການຂົນສົ່ງ', what: 'ຮັບເງິນ-ເອກະສານຈາກຄົນຂັບ, ກວດຍອດກັບໃບວຽກ', jd: 8 },
+            { who: 'ການເງິນ-ບັນຊີ', what: 'ຮັບເງິນພາຍໃນມື້, ກວດເງິນໂອນ, ບັນທຶກບັນຊີ', jd: 3, highlight: true },
+            { who: 'ຜູ້ຈັດການ', what: 'ປິດຍອດຖ້ຽວປະຈຳວັນ, ລາຍງານຜູ້ອຳນວຍການ', jd: 2 }
+        ];
+
+        function buildSeed() {
+            const jds = jdData.map((j, i) => ({ id: 'jd-' + (i + 1), ...j }));
+            const jdId = n => 'jd-' + n;
+            return {
+                settings: {
+                    authority: 'ຜູ້ຈັດການໂລຈິສຕິກ ແລະ ແຟຣນໄຊ ມີສິດ ແລະ ອຳນາດຕັດສິນໃຈທຸກເລື່ອງຮ່ວມກັບຜູ້ອຳນວຍການ. ທຸກຕຳແໜ່ງທີ່ເຫຼືອລາຍງານຕໍ່ຜູ້ຈັດການ; ຄົນຂັບ ແລະ ຜູ້ຊ່ວຍຕິດລົດ ຮັບຄຳສັ່ງວຽກປະຈຳວັນຈາກຜູ້ຈັດການໂດຍກົງ (ຜູ້ຈັດການເຮັດໜ້າທີ່ Dispatcher ເອງ)',
+                    remark: 'ຊ່ອງ ____ ເວັ້ນໄວ້ໃຫ້ເຈົ້າຂອງຕື່ມ (ເປົ້າ KPI, ເງິນເດືອນ, ເວລາເຮັດວຽກ)',
+                    workflowRule: 'ບັນຫາໜ້າງານທຸກເລື່ອງແຈ້ງຜູ້ຈັດການກ່ອນສົ່ງຕໍ່; ເງິນຕ້ອງໄປຮອດການເງິນພາຍໃນມື້ດຽວກັນ'
+                },
+                departments: defaultData.map(d => ({
+                    id: d.id, name: d.name, icon: d.icon, color: d.color,
+                    jdIds: (deptJdMap[d.id] || []).map(jdId),
+                    links: d.tasks.map(t => ({ id: 'l' + t.id, title: t.title, url: t.url }))
+                })),
+                jds,
+                office: officeTeam.map((o, i) => ({ id: 'o' + (i + 1), jdId: jdId(o.jd), position: o.position, name: o.name, scope: o.scope, reportsTo: o.reportsTo })),
+                trucks: trucks.map((t, i) => ({ id: 't' + (i + 1), plate: t.plate, zone: '____', driver: t.driver, helpers: t.helpers })),
+                workflow: workflowSteps.map((s, i) => ({ id: 'w' + (i + 1), who: s.who, what: s.what, jdId: jdId(s.jd), decision: !!s.decision, highlight: !!s.highlight }))
+            };
+        }
+
+        const DEPT_ICONS = ['fa-headset', 'fa-route', 'fa-boxes-stacked', 'fa-file-invoice-dollar', 'fa-truck', 'fa-users', 'fa-screwdriver-wrench', 'fa-store', 'fa-chart-line', 'fa-clipboard-list', 'fa-building', 'fa-bullhorn', 'fa-user-tie', 'fa-people-carry-box', 'fa-id-badge', 'fa-gears'];
+        const DEPT_COLORS = ['bg-indigo-500', 'bg-blue-500', 'bg-sky-500', 'bg-cyan-600', 'bg-teal-500', 'bg-emerald-600', 'bg-amber-500', 'bg-orange-500', 'bg-rose-500', 'bg-violet-500', 'bg-slate-600'];
+
+        // ===== State =====
+        const CACHE_KEY = 'naniHubCache';
+        const DONE_KEY = 'naniHubDone';
+        const PW_KEY = 'naniHubAdminPw';
+        let state = null;
+        let version = null;
+        let saving = false;
+        let lastError = '';
+
+        function load(key, fallback) {
+            try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (e) { return fallback; }
+        }
+        function store(key, val) {
+            try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+        }
+        let doneMap = load(DONE_KEY, {});
+
+        function adminPw() { try { return sessionStorage.getItem(PW_KEY); } catch (e) { return null; } }
+        function isAdmin() { return !!adminPw(); }
+
+        function esc(v) {
+            return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+        function safeUrl(u) {
+            u = String(u || '').trim();
+            if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+            return u;
+        }
+        function uid(prefix) { return prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+        function isBlank(v) { return !v || v === '____'; }
+        function blankOr(v, text) { return isBlank(v) ? `<span class="text-gray-400 italic">${text}</span>` : esc(v); }
+        function jdById(id) { return state.jds.find(j => j.id === id); }
+        function jdNo(id) { return state.jds.findIndex(j => j.id === id) + 1; }
+
+        // ===== Sync ກັບ Google Sheets =====
+        function setStatus() {
+            const el = document.getElementById('sync-status');
+            if (!APPS_SCRIPT_URL) { el.innerHTML = '<i class="fa-solid fa-plug-circle-xmark mr-1"></i> ບໍ່ໄດ້ເຊື່ອມ'; return; }
+            if (saving) { el.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i> ກຳລັງບັນທຶກ...'; return; }
+            if (lastError) { el.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> ' + esc(lastError); return; }
+            el.innerHTML = '<i class="fa-solid fa-circle text-green-300 text-[8px] mr-1 align-middle"></i> ອັບເດດສົດ';
+        }
+
+        async function fetchRemote() {
+            if (!APPS_SCRIPT_URL) return;
+            try {
+                const res = await fetch(APPS_SCRIPT_URL + '?t=' + Date.now(), { cache: 'no-store' });
+                const json = await res.json();
+                lastError = '';
+                if (json.version && json.version !== version && json.data) {
+                    // ບໍ່ທັບຂໍ້ມູນຂະນະກຳລັງແກ້ໄຂຟອມ
+                    if (isModalOpen()) return;
+                    state = json.data;
+                    version = json.version;
+                    store(CACHE_KEY, { version, data: state });
+                    renderAll();
+                } else if (!json.version && !version) {
+                    version = null; // Sheet ຍັງວ່າງ: ໃຊ້ຂໍ້ມູນເລີ່ມຕົ້ນ
+                }
+            } catch (e) {
+                lastError = 'ອອບໄລນ໌';
+            }
+            setStatus();
+        }
+
+        async function post(body) {
+            const res = await fetch(APPS_SCRIPT_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // ຫຼີກລ່ຽງ CORS preflight
+                body: JSON.stringify(body)
+            });
+            return res.json();
+        }
+
+        async function save() {
+            renderAll();
+            if (!APPS_SCRIPT_URL || !isAdmin()) return;
+            saving = true; setStatus();
+            try {
+                const json = await post({ action: 'save', password: adminPw(), baseVersion: version, data: state });
+                if (json.ok) {
+                    version = json.version;
+                    lastError = '';
+                    store(CACHE_KEY, { version, data: state });
+                } else if (json.error === 'conflict') {
+                    alert('ມີການແກ້ໄຂຈາກອຸປະກອນອື່ນກ່ອນໜ້ານີ້ — ຈະໂຫຼດຂໍ້ມູນລ່າສຸດ, ກະລຸນາແກ້ໄຂຄືນອີກຄັ້ງ');
+                    version = '__stale__';
+                    await fetchRemote();
+                } else if (json.error === 'unauthorized') {
+                    alert('ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ ຫຼື ຖືກປ່ຽນແລ້ວ — ກະລຸນາເຂົ້າລະບົບໃໝ່');
+                    logout();
+                    version = '__stale__';
+                    await fetchRemote();
+                } else {
+                    lastError = 'ບັນທຶກບໍ່ສຳເລັດ';
+                }
+            } catch (e) {
+                lastError = 'ບັນທຶກບໍ່ສຳເລັດ';
+                alert('ບັນທຶກບໍ່ສຳເລັດ (ກວດອິນເຕີເນັດ) — ການແກ້ໄຂນີ້ຍັງບໍ່ຂຶ້ນ Google Sheets');
+            }
+            saving = false; setStatus();
+        }
+
+        // ===== ເຂົ້າລະບົບແອດມິນ =====
+        function openLogin() {
+            if (!APPS_SCRIPT_URL) {
+                alert('ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ APPS_SCRIPT_URL ໃນໄຟລ໌ HTML — ເບິ່ງຂັ້ນຕອນຕັ້ງຄ່າໃນໄຟລ໌ apps-script.gs');
+                return;
+            }
+            openForm({
+                title: 'ເຂົ້າລະບົບແອດມິນ',
+                fields: [{ key: 'pw', label: 'ລະຫັດຜ່ານແອດມິນ', type: 'password', required: true }],
+                values: {},
+                onSubmit: async v => {
+                    try {
+                        const json = await post({ action: 'login', password: v.pw });
+                        if (!json.ok) { alert('ລະຫັດຜ່ານບໍ່ຖືກຕ້ອງ'); return false; }
+                        try { sessionStorage.setItem(PW_KEY, v.pw); } catch (e) {}
+                        applyAdmin();
+                        // Sheet ຍັງວ່າງ: ອັບໂຫຼດຂໍ້ມູນເລີ່ມຕົ້ນຂຶ້ນ Sheet ຄັ້ງທຳອິດ
+                        if (!version) save();
+                    } catch (e) {
+                        alert('ເຊື່ອມຕໍ່ບໍ່ໄດ້ — ກວດ APPS_SCRIPT_URL ແລະ ອິນເຕີເນັດ');
+                        return false;
+                    }
+                },
+                noSave: true
+            });
+        }
+        function logout() {
+            try { sessionStorage.removeItem(PW_KEY); } catch (e) {}
+            applyAdmin();
+        }
+        function applyAdmin() {
+            const admin = isAdmin();
+            document.body.classList.toggle('admin', admin);
+            document.getElementById('login-btn').classList.toggle('hidden', admin);
+            document.getElementById('logout-btn').classList.toggle('hidden', !admin);
+        }
+
+        // ===== ຟອມແກ້ໄຂ (ໃຊ້ຮ່ວມກັນທຸກໜ້າ) =====
+        let modalCtx = null;
+        function isModalOpen() { return !document.getElementById('modal').classList.contains('hidden'); }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); modalCtx = null; }
+
+        const inputCls = 'text-sm w-full border border-gray-300 rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500';
+
+        function fieldHtml(f, val) {
+            const label = `<label class="block text-xs font-bold text-gray-600 mb-1">${esc(f.label)}${f.hint ? ` <span class="font-normal text-gray-400">— ${esc(f.hint)}</span>` : ''}</label>`;
+            const req = f.required ? 'required' : '';
+            switch (f.type) {
+                case 'textarea':
+                    return `<div>${label}<textarea name="${f.key}" rows="${f.rows || 4}" class="${inputCls}" ${req}>${esc(val)}</textarea></div>`;
+                case 'select':
+                    return `<div>${label}<select name="${f.key}" class="${inputCls}">${f.options.map(o => `<option value="${esc(o.value)}" ${o.value === val ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select></div>`;
+                case 'checks':
+                    return `<div>${label}<div class="grid sm:grid-cols-2 gap-1">${f.options.map(o => `
+                        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="${f.key}" value="${esc(o.value)}" ${(val || []).includes(o.value) ? 'checked' : ''}> ${esc(o.label)}</label>`).join('')}</div></div>`;
+                case 'checkbox':
+                    return `<label class="flex items-center gap-2 text-sm"><input type="checkbox" name="${f.key}" ${val ? 'checked' : ''}> ${esc(f.label)}</label>`;
+                case 'icon':
+                    return `<div>${label}<div class="flex flex-wrap gap-1">${f.options.map(o => `
+                        <label class="cursor-pointer"><input type="radio" name="${f.key}" value="${o}" class="peer hidden" ${o === val ? 'checked' : ''}>
+                        <span class="w-9 h-9 flex items-center justify-center rounded border border-gray-200 peer-checked:bg-blue-600 peer-checked:text-white"><i class="fa-solid ${o}"></i></span></label>`).join('')}</div></div>`;
+                case 'color':
+                    return `<div>${label}<div class="flex flex-wrap gap-1">${f.options.map(o => `
+                        <label class="cursor-pointer"><input type="radio" name="${f.key}" value="${o}" class="peer hidden" ${o === val ? 'checked' : ''}>
+                        <span class="block w-8 h-8 rounded-full ${o} ring-offset-2 peer-checked:ring-2 peer-checked:ring-gray-800"></span></label>`).join('')}</div></div>`;
+                default:
+                    return `<div>${label}<input type="${f.type || 'text'}" name="${f.key}" value="${esc(val)}" class="${inputCls}" ${req}></div>`;
+            }
+        }
+
+        function openForm({ title, fields, values, onSubmit, onDelete, noSave }) {
+            modalCtx = { fields, onSubmit, noSave };
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').innerHTML = fields.map(f => fieldHtml(f, values[f.key])).join('');
+            const del = document.getElementById('modal-delete');
+            del.classList.toggle('hidden', !onDelete);
+            del.onclick = onDelete ? () => {
+                if (!confirm('ຢືນຢັນການລຶບ?')) return;
+                onDelete();
+                closeModal();
+                save();
+            } : null;
+            document.getElementById('modal').classList.remove('hidden');
+            const first = document.querySelector('#modal-body input:not([type=radio]):not([type=checkbox]), #modal-body textarea');
+            if (first) first.focus();
+        }
+
+        document.getElementById('modal-form').addEventListener('submit', async e => {
+            e.preventDefault();
+            const form = e.target;
+            const v = {};
+            modalCtx.fields.forEach(f => {
+                if (f.type === 'checks') v[f.key] = [...form.querySelectorAll(`[name="${f.key}"]:checked`)].map(i => i.value);
+                else if (f.type === 'checkbox') v[f.key] = form.querySelector(`[name="${f.key}"]`).checked;
+                else if (f.type === 'icon' || f.type === 'color') v[f.key] = (form.querySelector(`[name="${f.key}"]:checked`) || {}).value || f.options[0];
+                else v[f.key] = form.querySelector(`[name="${f.key}"]`).value.trim();
+            });
+            const ctx = modalCtx;
+            const result = await ctx.onSubmit(v);
+            if (result === false) return;
+            closeModal();
+            if (!ctx.noSave) save();
+        });
+
+        // ຂໍ້ຄວາມຫຼາຍແຖວ <-> ລາຍການ
+        const lines = s => String(s || '').split('\n').map(x => x.trim()).filter(Boolean);
+        // ກຸ່ມ: ແຖວທີ່ຂຶ້ນຕົ້ນດ້ວຍ # ຄືຫົວຂໍ້ກຸ່ມ
+        function groupsToText(groups) {
+            return (groups || []).map(g => (g.heading ? '# ' + g.heading + '\n' : '') + g.items.join('\n')).join('\n');
+        }
+        function textToGroups(text) {
+            const groups = [];
+            let cur = null;
+            lines(text).forEach(l => {
+                if (l.startsWith('#')) { cur = { heading: l.replace(/^#+\s*/, ''), items: [] }; groups.push(cur); }
+                else { if (!cur) { cur = { items: [] }; groups.push(cur); } cur.items.push(l); }
+            });
+            return groups;
+        }
+        function moveItem(arr, id, dir) {
+            const i = arr.findIndex(x => x.id === id), j = i + dir;
+            if (i < 0 || j < 0 || j >= arr.length) return;
+            [arr[i], arr[j]] = [arr[j], arr[i]];
+            save();
+        }
+        const jdOptions = () => state.jds.map((j, i) => ({ value: j.id, label: `${i + 1}. ${j.title}` }));
+
+        // ===== ແກ້ໄຂ: ພະແນກ + ລິ້ງ =====
+        function editDept(id) {
+            const d = state.departments.find(x => x.id === id);
+            openForm({
+                title: d ? 'ແກ້ໄຂພະແນກ' : 'ເພີ່ມພະແນກໃໝ່',
+                fields: [
+                    { key: 'name', label: 'ຊື່ພະແນກ', required: true },
+                    { key: 'icon', label: 'ໄອຄອນ', type: 'icon', options: DEPT_ICONS },
+                    { key: 'color', label: 'ສີ', type: 'color', options: DEPT_COLORS },
+                    { key: 'jdIds', label: 'JD ທີ່ກ່ຽວຂ້ອງ (ສະແດງເປັນປຸ່ມລັດໃນບັດພະແນກ)', type: 'checks', options: jdOptions() }
+                ],
+                values: d || { icon: DEPT_ICONS[0], color: DEPT_COLORS[1], jdIds: [] },
+                onSubmit: v => {
+                    if (d) Object.assign(d, v);
+                    else state.departments.push({ id: uid('d'), links: [], ...v });
+                },
+                onDelete: d ? () => { state.departments = state.departments.filter(x => x !== d); } : null
+            });
+        }
+
+        function editLink(deptId, linkId) {
+            const d = state.departments.find(x => x.id === deptId);
+            const l = d.links.find(x => x.id === linkId);
+            openForm({
+                title: (l ? 'ແກ້ໄຂລິ້ງ' : 'ເພີ່ມລິ້ງ') + ' — ' + d.name,
+                fields: [
+                    { key: 'title', label: 'ຊື່ວຽກ', required: true },
+                    { key: 'url', label: 'URL ລິ້ງ', hint: 'ເຊັ່ນ docs.google.com/...', required: true },
+                    { key: 'deptId', label: 'ພະແນກ', type: 'select', options: state.departments.map(x => ({ value: x.id, label: x.name })) }
+                ],
+                values: { ...(l || {}), deptId },
+                onSubmit: v => {
+                    const target = state.departments.find(x => x.id === v.deptId) || d;
+                    const data = { title: v.title, url: safeUrl(v.url) };
+                    if (l) {
+                        Object.assign(l, data);
+                        if (target !== d) { d.links = d.links.filter(x => x !== l); target.links.push(l); }
+                    } else target.links.push({ id: uid('l'), ...data });
+                },
+                onDelete: l ? () => { d.links = d.links.filter(x => x !== l); } : null
+            });
+        }
+
+        // ===== ແກ້ໄຂ: JD =====
+        function editJd(id) {
+            const j = id ? jdById(id) : null;
+            const values = j ? { ...j, duties: groupsToText(j.duties), kpi: groupsToText(j.kpi), qualifications: (j.qualifications || []).join('\n') }
+                             : { icon: 'fa-id-badge', reportsTo: 'ຜູ້ຈັດການໂລຈິສຕິກ ແລະ ແຟຣນໄຊ', salary: '____', hours: '____' };
+            openForm({
+                title: j ? 'ແກ້ໄຂ JD — ' + j.title : 'ເພີ່ມຕຳແໜ່ງໃໝ່',
+                fields: [
+                    { key: 'title', label: 'ຊື່ຕຳແໜ່ງ (ລາວ)', required: true },
+                    { key: 'en', label: 'ຊື່ຕຳແໜ່ງ (ອັງກິດ)' },
+                    { key: 'icon', label: 'ໄອຄອນ', type: 'icon', options: ['fa-id-badge', 'fa-user-tie', 'fa-user-gear', 'fa-file-invoice-dollar', 'fa-headset', 'fa-truck', 'fa-people-carry-box', 'fa-boxes-stacked', 'fa-clipboard-list', 'fa-screwdriver-wrench', 'fa-store', 'fa-users'] },
+                    { key: 'reportsTo', label: 'ລາຍງານຕໍ່' },
+                    { key: 'summary', label: 'ລັກສະນະວຽກ (ສັ້ນໆ ສຳລັບຕາຕະລາງພາບລວມ)' },
+                    { key: 'purpose', label: 'ຈຸດປະສົງ', type: 'textarea', rows: 2 },
+                    { key: 'duties', label: 'ໜ້າທີ່ຫຼັກ', hint: 'ແຖວລະ 1 ຂໍ້; ແຖວທີ່ຂຶ້ນຕົ້ນດ້ວຍ # ຄືຫົວຂໍ້ກຸ່ມ', type: 'textarea', rows: 8 },
+                    { key: 'kpi', label: 'KPI', hint: 'ແຖວລະ 1 ຂໍ້; # ຄືຫົວຂໍ້ກຸ່ມ', type: 'textarea', rows: 5 },
+                    { key: 'qualifications', label: 'ຄຸນສົມບັດ', hint: 'ແຖວລະ 1 ຂໍ້', type: 'textarea', rows: 4 },
+                    { key: 'salary', label: 'ເງິນເດືອນ/ສະຫວັດດີການ' },
+                    { key: 'hours', label: 'ເວລາເຮັດວຽກ' }
+                ],
+                values,
+                onSubmit: v => {
+                    const data = { ...v, duties: textToGroups(v.duties), kpi: textToGroups(v.kpi), qualifications: lines(v.qualifications) };
+                    if (j) Object.assign(j, data);
+                    else state.jds.push({ id: uid('jd'), ...data });
+                },
+                onDelete: j ? () => {
+                    state.jds = state.jds.filter(x => x !== j);
+                    state.departments.forEach(d => d.jdIds = (d.jdIds || []).filter(x => x !== j.id));
+                } : null
+            });
+        }
+
+        function editNotes() {
+            openForm({
+                title: 'ແກ້ໝາຍເຫດ',
+                fields: [
+                    { key: 'authority', label: 'ອຳນາດຕັດສິນໃຈ', type: 'textarea', rows: 3 },
+                    { key: 'remark', label: 'ໝາຍເຫດ', type: 'textarea', rows: 2 },
+                    { key: 'workflowRule', label: 'ກົດຂອງຂັ້ນຕອນວຽກ', type: 'textarea', rows: 2 }
+                ],
+                values: state.settings,
+                onSubmit: v => { Object.assign(state.settings, v); }
+            });
+        }
+
+        // ===== ແກ້ໄຂ: ທີມງານ / ລົດ / ຂັ້ນຕອນ =====
+        function editOffice(id) {
+            const o = state.office.find(x => x.id === id);
+            openForm({
+                title: o ? 'ແກ້ໄຂພະນັກງານ' : 'ເພີ່ມພະນັກງານ',
+                fields: [
+                    { key: 'position', label: 'ຕຳແໜ່ງ (ຊື່ທີ່ສະແດງ)', required: true },
+                    { key: 'jdId', label: 'ເຊື່ອມກັບ JD', type: 'select', options: jdOptions() },
+                    { key: 'name', label: 'ຊື່-ນາມສະກຸນ', hint: 'ເວັ້ນວ່າງ ຖ້າຍັງບໍ່ມີຄົນ' },
+                    { key: 'scope', label: 'ຂອບເຂດທີ່ຮັບຜິດຊອບ' },
+                    { key: 'reportsTo', label: 'ລາຍງານຕໍ່' }
+                ],
+                values: o || { reportsTo: 'ຜູ້ຈັດການ' },
+                onSubmit: v => {
+                    if (o) Object.assign(o, v);
+                    else state.office.push({ id: uid('o'), ...v });
+                },
+                onDelete: o ? () => { state.office = state.office.filter(x => x !== o); } : null
+            });
+        }
+
+        function editTruck(id) {
+            const t = state.trucks.find(x => x.id === id);
+            openForm({
+                title: t ? 'ແກ້ໄຂລົດ ' + t.plate : 'ເພີ່ມລົດ + ທີມ',
+                fields: [
+                    { key: 'plate', label: 'ເລກລົດ', required: true },
+                    { key: 'zone', label: 'ເຂດ' },
+                    { key: 'driver', label: 'ຄົນຂັບ' },
+                    { key: 'helpers', label: 'ຜູ້ຊ່ວຍຕິດລົດ', hint: 'ແຖວລະ 1 ຄົນ', type: 'textarea', rows: 3 }
+                ],
+                values: t ? { ...t, helpers: t.helpers.join('\n') } : { zone: '____' },
+                onSubmit: v => {
+                    const data = { ...v, helpers: lines(v.helpers) };
+                    if (t) Object.assign(t, data);
+                    else state.trucks.push({ id: uid('t'), ...data });
+                },
+                onDelete: t ? () => { state.trucks = state.trucks.filter(x => x !== t); } : null
+            });
+        }
+
+        function editStep(id) {
+            const s = state.workflow.find(x => x.id === id);
+            openForm({
+                title: s ? 'ແກ້ໄຂຂັ້ນຕອນ' : 'ເພີ່ມຂັ້ນຕອນ',
+                fields: [
+                    { key: 'who', label: 'ຜູ້ຮັບຜິດຊອບ', required: true },
+                    { key: 'what', label: 'ເຮັດຫຍັງ', type: 'textarea', rows: 2 },
+                    { key: 'jdId', label: 'ເຊື່ອມກັບ JD', type: 'select', options: jdOptions() },
+                    { key: 'decision', label: 'ມີຈຸດຕັດສິນໃຈ "ມີບັນຫາໜ້າງານ?" ຫຼັງຂັ້ນນີ້', type: 'checkbox' },
+                    { key: 'highlight', label: 'ເນັ້ນສີ (ຂັ້ນສຳຄັນ)', type: 'checkbox' }
+                ],
+                values: s || {},
+                onSubmit: v => {
+                    if (s) Object.assign(s, v);
+                    else state.workflow.push({ id: uid('w'), ...v });
+                },
+                onDelete: s ? () => { state.workflow = state.workflow.filter(x => x !== s); } : null
+            });
+        }
+
+        // ===== Render: ລິ້ງວຽກ =====
+        function toggleDone(linkId) {
+            doneMap[linkId] = !doneMap[linkId];
+            if (!doneMap[linkId]) delete doneMap[linkId];
+            store(DONE_KEY, doneMap);
+            renderLinks();
+        }
+
+        const upDown = (fn, id) => `
+            <button onclick="${fn}('${id}',-1)" class="edit-btn hover:bg-black/10" title="ຍ້າຍຂຶ້ນ"><i class="fa-solid fa-arrow-up"></i></button>
+            <button onclick="${fn}('${id}',1)" class="edit-btn hover:bg-black/10" title="ຍ້າຍລົງ"><i class="fa-solid fa-arrow-down"></i></button>`;
+        function moveDept(id, dir) { moveItem(state.departments, id, dir); }
+        function moveLink(deptId, linkId, dir) { moveItem(state.departments.find(d => d.id === deptId).links, linkId, dir); }
+        function moveJd(id, dir) { moveItem(state.jds, id, dir); }
+        function moveStep(id, dir) { moveItem(state.workflow, id, dir); }
+        function moveTruck(id, dir) { moveItem(state.trucks, id, dir); }
+        function moveOffice(id, dir) { moveItem(state.office, id, dir); }
+
+        function renderLinks() {
+            const container = document.getElementById('departments-container');
+            if (!state.departments.length) {
+                container.innerHTML = '<p class="text-center text-gray-400 col-span-full">ຍັງບໍ່ມີພະແນກ</p>';
+                return;
+            }
+            container.innerHTML = state.departments.map(dept => {
+                const jds = (dept.jdIds || []).map(jdById).filter(Boolean);
+                return `
+                <div class="bg-white rounded-xl shadow-md overflow-hidden border border-blue-100 flex flex-col h-full hover:shadow-lg transition-shadow duration-300">
+                    <div class="${esc(dept.color)} text-white px-4 py-3 flex items-center justify-between gap-2">
+                        <h3 class="font-bold text-lg"><i class="fa-solid ${esc(dept.icon)} mr-2"></i> ${esc(dept.name)}</h3>
+                        <div class="flex items-center gap-1 shrink-0">
+                            <span class="admin-only">${upDown('moveDept', dept.id)}
+                                <button onclick="editDept('${dept.id}')" class="edit-btn bg-white/20 hover:bg-white/30" title="ແກ້ໄຂພະແນກ"><i class="fa-solid fa-pen"></i></button>
+                            </span>
+                            <span class="bg-white text-gray-800 text-xs font-bold px-2 py-1 rounded-full">${dept.links.length} ວຽກ</span>
+                        </div>
+                    </div>
+                    ${jds.length ? `
+                    <div class="px-4 pt-3 flex flex-wrap gap-1.5">
+                        ${jds.map(j => `
+                            <button onclick="openJd('${j.id}')" class="text-xs bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 px-2 py-1 rounded-full">
+                                <i class="fa-solid fa-id-badge mr-1"></i>JD: ${esc(j.title)}
+                            </button>`).join('')}
+                    </div>` : ''}
+                    <div class="p-4 flex-grow flex flex-col">
+                        <ul class="space-y-3 mb-2 flex-grow">
+                            ${dept.links.length === 0 ? `<li class="text-gray-400 text-sm text-center py-4">ຍັງບໍ່ມີລິ້ງວຽກໃນພະແນກນີ້</li>` : dept.links.map(link => `
+                            <li class="flex items-start justify-between bg-gray-50 p-3 rounded-lg border border-gray-100">
+                                <div class="flex items-start gap-3 overflow-hidden">
+                                    <input type="checkbox" ${doneMap[link.id] ? 'checked' : ''} onchange="toggleDone('${link.id}')" class="mt-1 w-4 h-4 cursor-pointer" title="ໝາຍວ່າເຮັດແລ້ວ (ສະເພາະເຄື່ອງນີ້)">
+                                    <div class="flex flex-col overflow-hidden">
+                                        <span class="font-medium text-sm truncate ${doneMap[link.id] ? 'task-done' : 'text-gray-800'}">${esc(link.title)}</span>
+                                        <a href="${esc(safeUrl(link.url))}" target="_blank" rel="noopener" class="text-xs text-blue-500 hover:text-blue-700 hover:underline truncate mt-0.5 w-full block">
+                                            <i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> ເປີດລິ້ງ
+                                        </a>
+                                    </div>
+                                </div>
+                                <span class="admin-only flex shrink-0 text-gray-500">
+                                    <button onclick="moveLink('${dept.id}','${link.id}',-1)" class="edit-btn hover:bg-gray-200"><i class="fa-solid fa-arrow-up"></i></button>
+                                    <button onclick="moveLink('${dept.id}','${link.id}',1)" class="edit-btn hover:bg-gray-200"><i class="fa-solid fa-arrow-down"></i></button>
+                                    <button onclick="editLink('${dept.id}','${link.id}')" class="edit-btn text-blue-600 hover:bg-blue-100" title="ແກ້ໄຂ"><i class="fa-solid fa-pen"></i></button>
+                                </span>
+                            </li>`).join('')}
+                        </ul>
+                        <button onclick="editLink('${dept.id}')" class="admin-only mt-2 w-full bg-blue-100 text-blue-700 hover:bg-blue-200 px-3 py-1.5 rounded text-sm font-medium">
+                            <i class="fa-solid fa-plus"></i> ເພີ່ມລິ້ງວຽກ
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        // ===== Render: JD =====
+        function listHtml(items) {
+            return `<ul class="list-disc pl-5 space-y-1 text-sm text-gray-700">${(items || []).map(i => `<li>${esc(i)}</li>`).join('')}</ul>`;
+        }
+        function groupsHtml(groups) {
+            return (groups || []).map(g => `
+                ${g.heading ? `<p class="text-xs font-bold text-blue-700 mt-3 mb-1">${esc(g.heading)}</p>` : ''}
+                ${listHtml(g.items)}
+            `).join('');
+        }
+
+        function renderJd() {
+            const s = state.settings || {};
+            document.getElementById('note-authority').textContent = s.authority || '';
+            document.getElementById('note-remark').textContent = s.remark || '';
+            document.getElementById('note-workflow').textContent = s.workflowRule || '';
+
+            document.getElementById('jd-overview').innerHTML = state.jds.map((jd, i) => `
+                <tr class="border-t border-gray-100 hover:bg-blue-50/50 cursor-pointer" onclick="openJd('${jd.id}')">
+                    <td class="px-4 py-2 text-gray-400">${i + 1}</td>
+                    <td class="px-4 py-2 font-medium text-blue-800 whitespace-nowrap">${esc(jd.title)}</td>
+                    <td class="px-4 py-2 text-gray-600">${esc(jd.reportsTo)}</td>
+                    <td class="px-4 py-2 text-gray-600">${esc(jd.summary)}</td>
+                </tr>
+            `).join('');
+
+            document.getElementById('jd-container').innerHTML = state.jds.map((jd, i) => `
+                <details id="jd-${esc(jd.id)}" class="scroll-mt-24 bg-white rounded-xl shadow-md border border-blue-100 overflow-hidden">
+                    <summary class="px-4 py-3 flex items-center justify-between gap-3 hover:bg-blue-50/50">
+                        <div class="flex items-center gap-3">
+                            <span class="w-9 h-9 shrink-0 rounded-full bg-blue-600 text-white flex items-center justify-center"><i class="fa-solid ${esc(jd.icon || 'fa-id-badge')}"></i></span>
+                            <div>
+                                <p class="font-bold text-blue-900">${i + 1}. ${esc(jd.title)} ${jd.en ? `<span class="text-sm font-normal text-gray-500">(${esc(jd.en)})</span>` : ''}</p>
+                                <p class="text-xs text-gray-500">ລາຍງານຕໍ່: ${esc(jd.reportsTo)}</p>
+                            </div>
+                        </div>
+                        <span class="flex items-center gap-1">
+                            <span class="admin-only text-gray-500" onclick="event.preventDefault()">
+                                <button onclick="moveJd('${jd.id}',-1)" class="edit-btn hover:bg-gray-200"><i class="fa-solid fa-arrow-up"></i></button>
+                                <button onclick="moveJd('${jd.id}',1)" class="edit-btn hover:bg-gray-200"><i class="fa-solid fa-arrow-down"></i></button>
+                                <button onclick="editJd('${jd.id}')" class="edit-btn text-blue-600 hover:bg-blue-100"><i class="fa-solid fa-pen mr-1"></i>ແກ້ໄຂ</button>
+                            </span>
+                            <i class="fa-solid fa-chevron-down text-gray-400 transition-transform jd-chevron"></i>
+                        </span>
+                    </summary>
+                    <div class="px-4 pb-4 pt-1 border-t border-gray-100 space-y-4">
+                        <div class="bg-blue-50 rounded-lg p-3 text-sm mt-3">
+                            <b class="text-blue-800"><i class="fa-solid fa-bullseye mr-1"></i> ຈຸດປະສົງ:</b> ${esc(jd.purpose)}
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <h4 class="font-bold text-gray-800 mb-1"><i class="fa-solid fa-list-check text-blue-600 mr-1"></i> ໜ້າທີ່ຫຼັກ</h4>
+                                ${groupsHtml(jd.duties)}
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <h4 class="font-bold text-gray-800 mb-1"><i class="fa-solid fa-chart-line text-blue-600 mr-1"></i> KPI</h4>
+                                    ${groupsHtml(jd.kpi)}
+                                </div>
+                                <div>
+                                    <h4 class="font-bold text-gray-800 mb-1"><i class="fa-solid fa-graduation-cap text-blue-600 mr-1"></i> ຄຸນສົມບັດ</h4>
+                                    ${listHtml(jd.qualifications)}
+                                </div>
+                                <div class="text-sm text-gray-700 bg-gray-50 rounded-lg p-3">
+                                    <p><b>ເງິນເດືອນ/ສະຫວັດດີການ:</b> ${esc(jd.salary)}</p>
+                                    <p><b>ເວລາເຮັດວຽກ:</b> ${esc(jd.hours)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </details>
+            `).join('');
+        }
+
+        function renderTeam() {
+            const { office, trucks: fleet } = state;
+            const helperRows = fleet.flatMap(t => t.helpers.map(h => ({ name: h, plate: t.plate, truckId: t.id })));
+            const jdForTitle = title => (state.jds.find(j => j.title === title) || {}).id || '';
+            const driverJd = jdForTitle('ພະນັກງານຂັບລົດ');
+            const helperJd = jdForTitle('ຜູ້ຊ່ວຍຕິດລົດ');
+            const row = (r, editCall, moveFn) => `
+                <tr class="border-t border-gray-100 hover:bg-blue-50/50 cursor-pointer" onclick="openJd('${r.jdId}')">
+                    <td class="px-4 py-2 font-medium text-blue-800 whitespace-nowrap">${esc(r.position)}</td>
+                    <td class="px-4 py-2 whitespace-nowrap">${blankOr(r.name, 'ຍັງບໍ່ລະບຸ')}</td>
+                    <td class="px-4 py-2 text-gray-600">${esc(r.scope)}</td>
+                    <td class="px-4 py-2 text-gray-600">${esc(r.reportsTo)}</td>
+                    <td class="admin-only px-2 py-2 whitespace-nowrap text-gray-500" onclick="event.stopPropagation()">
+                        ${moveFn || ''}
+                        <button onclick="${editCall}" class="edit-btn text-blue-600 hover:bg-blue-100"><i class="fa-solid fa-pen"></i></button>
+                    </td>
+                </tr>`;
+            const mv = (fn, id) => `<button onclick="${fn}('${id}',-1)" class="edit-btn hover:bg-gray-200"><i class="fa-solid fa-arrow-up"></i></button><button onclick="${fn}('${id}',1)" class="edit-btn hover:bg-gray-200"><i class="fa-solid fa-arrow-down"></i></button>`;
+
+            document.getElementById('roster-body').innerHTML = [
+                ...office.map(o => row(o, `editOffice('${o.id}')`, mv('moveOffice', o.id))),
+                ...fleet.map((t, i) => row({ jdId: driverJd, position: `ພະນັກງານຂັບລົດ ${i + 1}`, name: t.driver, scope: `ລົດເລກ ${t.plate} / ເຂດ ${t.zone || '____'}`, reportsTo: 'ຜູ້ຈັດການ' }, `editTruck('${t.id}')`, mv('moveTruck', t.id))),
+                ...helperRows.map((h, i) => row({ jdId: helperJd, position: `ຜູ້ຊ່ວຍຕິດລົດ ${i + 1}`, name: h.name, scope: `ລົດເລກ ${h.plate}`, reportsTo: 'ຜູ້ຈັດການ' }, `editTruck('${h.truckId}')`))
+            ].join('');
+
+            // ຜັງອົງກອນ
+            const box = (title, lns, extra = '') => `
+                <div class="border border-gray-200 rounded-lg px-3 py-2 text-center bg-white ${extra}">
+                    <p class="font-bold text-sm text-gray-800">${title}</p>
+                    ${lns.map(l => `<p class="text-xs text-gray-600">${l}</p>`).join('')}
+                </div>`;
+            const line = `<div class="w-px h-5 bg-gray-300"></div>`;
+            const director = office.find(o => o.jdId === 'jd-1');
+            const manager = office.find(o => o.jdId === 'jd-2');
+            const rest = office.filter(o => o !== director && o !== manager);
+            const people = office.length + fleet.length + helperRows.length;
+            document.getElementById('org-count').textContent = `· ${people} ຄົນ, ${fleet.length} ລົດ`;
+
+            document.getElementById('org-chart').innerHTML = `
+                ${director ? box('ຜູ້ອຳນວຍການ · ເຈົ້າຂອງກິດຈະການ', [blankOr(director.name, 'ຍັງບໍ່ລະບຸຊື່')], 'w-full max-w-sm') + line : ''}
+                ${manager ? box(esc(manager.position), [blankOr(manager.name, 'ຍັງບໍ່ລະບຸຊື່'), '<span class="text-gray-500">ຈັດສົ່ງປະຈຳວັນ (Dispatcher) ດ້ວຍຕົນເອງ</span>'], 'w-full max-w-sm !bg-blue-50 !border-blue-500 border-2') + line : ''}
+                <div class="grid grid-cols-2 md:grid-cols-5 gap-2 w-full">
+                    ${rest.map(o => `<div class="cursor-pointer hover:shadow" onclick="openJd('${o.jdId}')">${box(esc(o.position.replace('ພະນັກງານ', '')), [blankOr(o.name, 'ຍັງບໍ່ລະບຸຊື່'), ...(isBlank(o.scope) ? [] : [esc(o.scope)])], 'h-full')}</div>`).join('')}
+                </div>
+                <div class="w-full mt-3 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                    <p class="font-bold text-sm text-gray-800 mb-2"><i class="fa-solid fa-truck mr-1 text-blue-600"></i> ທີມລົດຂົນສົ່ງ · ${fleet.length} ຄັນ · ຮັບຄຳສັ່ງວຽກຈາກຜູ້ຈັດການໂດຍກົງ</p>
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-2">
+                        ${fleet.map(t => `
+                            <div class="bg-white border border-gray-200 rounded-lg p-3 text-sm relative">
+                                <button onclick="editTruck('${t.id}')" class="admin-only absolute top-1 right-1 edit-btn text-blue-600 hover:bg-blue-100"><i class="fa-solid fa-pen"></i></button>
+                                <p class="font-bold text-gray-800 mb-1">ລົດ ${esc(t.plate)}</p>
+                                <p class="text-xs text-gray-500">ຄົນຂັບ</p>
+                                <p class="text-xs mb-1">${blankOr(t.driver, 'ຍັງບໍ່ລະບຸ')}</p>
+                                <p class="text-xs text-gray-500">ຜູ້ຊ່ວຍ</p>
+                                ${t.helpers.length ? t.helpers.map(h => `<p class="text-xs">${esc(h)}</p>`).join('') : '<p class="text-xs text-gray-400 italic">ຍັງບໍ່ລະບຸ</p>'}
+                            </div>`).join('')}
+                    </div>
+                </div>
+            `;
+
+            // ຂັ້ນຕອນວຽກ
+            const steps = state.workflow;
+            document.getElementById('wf-count').textContent = `· ${steps.length} ຂັ້ນ, ${steps.filter(s => s.decision).length} ຈຸດຕັດສິນໃຈ`;
+            const arrow = `<div class="flex justify-center text-gray-300 py-1"><i class="fa-solid fa-arrow-down"></i></div>`;
+            document.getElementById('workflow').innerHTML = steps.map((s, i) => `
+                ${i ? arrow : ''}
+                <div onclick="openJd('${s.jdId}')" class="relative cursor-pointer rounded-lg px-4 py-2 text-center hover:shadow ${s.highlight ? 'bg-blue-50 border-2 border-blue-500' : 'bg-white border border-gray-200'}">
+                    <span class="admin-only absolute top-1 right-1 text-gray-500" onclick="event.stopPropagation()">
+                        ${mv('moveStep', s.id)}
+                        <button onclick="editStep('${s.id}')" class="edit-btn text-blue-600 hover:bg-blue-100"><i class="fa-solid fa-pen"></i></button>
+                    </span>
+                    <p class="font-bold text-sm text-gray-800">${i + 1} · ${esc(s.who)}</p>
+                    <p class="text-xs text-gray-600">${esc(s.what)}</p>
+                </div>
+                ${s.decision ? `
+                    ${arrow}
+                    <div class="flex items-center justify-center gap-2 flex-wrap">
+                        <span class="bg-amber-50 border border-amber-300 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-full"><i class="fa-solid fa-circle-question mr-1"></i> ມີບັນຫາໜ້າງານ?</span>
+                        <span class="text-xs text-gray-600"><b>ມີ</b> → ແຈ້ງຜູ້ຈັດການ ແກ້ໄຂທັນທີ ແລ້ວກັບໄປສົ່ງຕໍ່ (ຂັ້ນ ${i + 1})</span>
+                    </div>
+                    <p class="text-center text-xs text-gray-500 mt-1">ບໍ່ມີ ↓</p>` : ''}
+            `).join('');
+        }
+
+        function renderBanner() {
+            const b = document.getElementById('banner');
+            if (APPS_SCRIPT_URL) { b.classList.add('hidden'); return; }
+            b.classList.remove('hidden');
+            b.innerHTML = `<div class="bg-amber-50 border border-amber-200 text-amber-800 text-sm rounded-lg px-4 py-2">
+                <i class="fa-solid fa-circle-info mr-1"></i> ຍັງບໍ່ໄດ້ເຊື່ອມ Google Sheets — ສະແດງຂໍ້ມູນເລີ່ມຕົ້ນ (ອ່ານຢ່າງດຽວ). ເບິ່ງວິທີຕັ້ງຄ່າໃນໄຟລ໌ apps-script.gs</div>`;
+        }
+
+        function renderAll() {
+            const openIds = [...document.querySelectorAll('#jd-container details[open]')].map(d => d.id);
+            renderLinks();
+            renderJd();
+            renderTeam();
+            openIds.forEach(id => { const el = document.getElementById(id); if (el) el.open = true; });
+            setStatus();
+        }
+
+        // ===== Navigation =====
+        function toggleAllJd(open) {
+            document.querySelectorAll('#jd-container details').forEach(d => d.open = open);
+        }
+
+        function openJd(id) {
+            const el = document.getElementById('jd-' + id);
+            if (!el) return;
+            showView('jd');
+            el.open = true;
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function showView(view) {
+            document.getElementById('view-links').classList.toggle('hidden', view !== 'links');
+            document.getElementById('view-jd').classList.toggle('hidden', view !== 'jd');
+            document.getElementById('tab-links').classList.toggle('active', view === 'links');
+            document.getElementById('tab-jd').classList.toggle('active', view === 'jd');
+            history.replaceState(null, '', view === 'jd' ? '#jd' : '#');
+        }
+
+        // ===== ເລີ່ມຕົ້ນ =====
+        const cached = load(CACHE_KEY, null);
+        if (APPS_SCRIPT_URL && cached && cached.data) { state = cached.data; version = cached.version; }
+        else state = buildSeed();
+        applyAdmin();
+        renderBanner();
+        renderAll();
+        showView(location.hash === '#jd' ? 'jd' : 'links');
+        fetchRemote();
+        setInterval(() => { if (!document.hidden && !saving) fetchRemote(); }, POLL_MS);
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) fetchRemote(); });
+    </script>
+</body>
+</html>
